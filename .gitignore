@@ -1,0 +1,19 @@
+# On-device model weights (~350 MB). GitHub refuses files over 100 MB; see models/README.md.
+models/multi_pii/onnx/
+
+# Packaged builds
+*.zip
+*.crx
+*.pem
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local test exports ("Save task for testing" / "Report"): they contain document text
+*.pii-task.json
+pii-report-*.json
+pii-learning-*.json

@@ -1,0 +1,12 @@
+{
+ "built": "2026-10-16",
+ "companies": 45155,
+ "companyNames": 81789,
+ "people": 52274,
+ "domains": 100000,
+ "sources": {
+  "companies": "Wikidata (CC0) via the Wikidata Query Service",
+  "people": "Wikidata (CC0) via QLever, Wikipedia in 25+ languages",
+  "domains": "Tranco top sites list"
+ }
+}

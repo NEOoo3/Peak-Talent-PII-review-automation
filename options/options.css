@@ -1,0 +1,47 @@
+:root {
+  --bg: #ffffff;
+  --fg: #111111;
+  --muted: #5f6368;
+  --line: #e3e3e3;
+  --accent: #111111;
+  --accent-fg: #ffffff;
+  --ok: #1e8e3e;
+  --bad: #c5221f;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161616;
+    --fg: #f1f1f1;
+    --muted: #a8a8a8;
+    --line: #333333;
+    --accent: #f1f1f1;
+    --accent-fg: #111111;
+    --ok: #81c995;
+    --bad: #f28b82;
+  }
+}
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 640px; margin: 32px auto; padding: 0 16px; }
+h1 { font-size: 20px; margin: 0 0 24px; }
+h2 { font-size: 16px; margin: 0 0 8px; }
+section { border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.badge { font-size: 11px; font-weight: 600; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; vertical-align: middle; }
+.switch { display: flex; gap: 8px; align-items: center; margin: 16px 0 4px; font-weight: 600; cursor: pointer; }
+.switch input { width: 18px; height: 18px; }
+.note { color: var(--muted); font-size: 13px; }
+.status { margin: 16px 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.key { color: var(--muted); margin-right: 6px; }
+.ok { color: var(--ok); font-weight: 600; }
+.bad { color: var(--bad); font-weight: 600; }
+button { background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 999px; padding: 8px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: progress; }
+button.quiet { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+.fields { display: grid; gap: 10px; margin: 12px 0; }
+.field { display: grid; gap: 4px; font-weight: 600; font-size: 13px; }
+.field small { color: var(--muted); font-weight: 400; }
+.field input { font: inherit; font-weight: 400; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.field input:disabled { opacity: .6; }
+.switch.small { margin: 4px 0 0; font-weight: 500; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+pre { white-space: pre-wrap; word-break: break-word; background: color-mix(in srgb, var(--fg) 6%, transparent); padding: 12px; border-radius: 8px; font-size: 12px; }

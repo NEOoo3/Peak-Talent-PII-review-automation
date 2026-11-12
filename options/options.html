@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PII Review Automation · options</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <h1>PII Review Automation <span class="badge" id="ver"></span></h1>
+
+    <section>
+      <h2>Highlights</h2>
+      <label class="switch">
+        <input type="checkbox" id="tags">
+        <span>Show label names on highlighted text</span>
+      </label>
+      <p class="note">A small tag such as <b>Person Name</b> or <b>Address · model</b> above each value found in the original document.</p>
+      <label class="switch">
+        <input type="checkbox" id="selcheck">
+        <span>Check selected text</span>
+      </label>
+      <p class="note">Select any text in a document to see whether it is PII, and why.</p>
+      <p class="note" id="kb">Knowledge base: checking…</p>
+    </section>
+
+    <section>
+      <h2>On-device model <span class="badge">beta</span></h2>
+      <p>Adds model suggestions for <b>person names, company names, addresses and usernames</b> to the rules.
+        It runs inside this browser: document text never leaves your computer.</p>
+      <label class="switch">
+        <input type="checkbox" id="enabled">
+        <span>Use model suggestions</span>
+      </label>
+      <p class="note" id="policy" hidden></p>
+
+      <div class="status">
+        <div><span class="key">Status</span> <span id="status">checking…</span></div>
+        <div id="detail" class="note"></div>
+      </div>
+
+      <button id="test" type="button">Test the model</button>
+      <pre id="result" hidden></pre>
+    </section>
+
+    <section>
+      <h2>Team sync <span class="badge">beta</span></h2>
+      <p>Shares the company names you label, and plain words you mark "not PII", with your team's PIIRA server, and
+        gets the team's list for each project. Document text, personal names, numbers, IDs and keys never leave this browser.</p>
+      <label class="switch">
+        <input type="checkbox" id="cloudOn">
+        <span>Sync with the team server</span>
+      </label>
+      <div class="fields">
+        <label class="field"><span>Server address</span><input id="cloudUrl" type="url" placeholder="https://piira.example.com" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span>API key</span><input id="cloudKey" type="password" placeholder="from your administrator" autocomplete="off" spellcheck="false"></label>
+        <label class="field"><span>Project <small>(optional)</small></span><input id="cloudProject" type="text" placeholder="taken from the task name" autocomplete="off" spellcheck="false"></label>
+        <label class="switch small"><input type="checkbox" id="cloudShare"><span>Share my answers (company names and "not PII" words)</span></label>
+      </div>
+      <p class="note" id="cloudPolicy" hidden></p>
+      <div class="row">
+        <button id="cloudSave" type="button">Save</button>
+        <button id="cloudTest" type="button" class="quiet">Test connection</button>
+        <button id="cloudFlush" type="button" class="quiet">Send queued now</button>
+      </div>
+      <div class="status">
+        <div><span class="key">Connection</span> <span id="cloudStatus">checking…</span></div>
+        <div class="note" id="cloudDetail"></div>
+      </div>
+    </section>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>
