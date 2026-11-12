@@ -312,7 +312,7 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       const words = valueWords(m);
-      btn.textContent = `Auto-Apply “${m.label}”${words.length > 1 ? ` · ${words.length} words` : ''}`;
+      btn.textContent = `Auto-Apply “${m.label}”${words.length > 1 ? ` · ${words.length} parts` : ''}`;
       btn.title = `Label ${words.map((w) => `“${w.text}”`).join(', ')} as ${m.label} on the page`;
       btn.style.cssText = 'display:block;width:100%;margin-top:9px;padding:7px 10px;border:0;border-radius:8px;' +
         'background:linear-gradient(135deg,#ffc14d,#f59e0b);color:#141414;box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 4px 14px rgba(245,158,11,.35);' +
@@ -329,7 +329,8 @@
       tip.mark = m;
     }
 
-    // Every underlined word of the value under the pointer, in page order (one label per word).
+    // Every underlined part of the value under the pointer, in page order (one label per part; a value
+    // is one part unless it breaks onto a new line).
     const valueWords = (m) => {
       const same = m.id == null ? [] : tip.marks.filter((x) => x.id === m.id && x.label === m.label);
       return (same.length ? same : [m]).slice().sort((a, b) => a.start - b.start);
@@ -344,7 +345,9 @@
       btn.disabled = true;
       btn.textContent = 'Applying…';
       let live = liveRight();
-      if (!words.some((w) => resolveTargetRange(w, live))) { btn.textContent = 'Already labeled'; setTimeout(hideTip, 1200); return; }
+      const freeWord = (w) => wordSpans(live.model.text, w.start, w.end, w.label)
+        .some((s) => resolveTargetRange({ start: s.start, end: s.end, text: live.model.text.slice(s.start, s.end), label: w.label }, live));
+      if (!words.some((w) => resolveTargetRange(w, live) || freeWord(w))) { btn.textContent = 'Already labeled'; setTimeout(hideTip, 1200); return; }
       hideTip();
       state.autoFilling = true;
       let applied = 0;
@@ -355,11 +358,26 @@
           live = liveRight();
           state.rightModel = live.model;
           state.rightLabels = live.labels;
-          const range = resolveTargetRange({ start: w.start, end: w.end, text: w.text, label: w.label }, live);
-          if (!range) continue;
-          // The card ticks "Annotate matching entries" (the same value elsewhere gets the label too); Auto-Fill does not.
-          if (await applySingleAnnotation(range, w.label, true)) { applied++; state.autoApplied.add(autoKey(w.label, w.text)); } else failed++;
-          if (words.length > 1) await sleep(160);
+          // The whole value as one label; if part of it is labeled already, each free run of words as one.
+          let targets = [{ start: w.start, end: w.end, text: w.text, label: w.label }];
+          if (!resolveTargetRange(targets[0], live) && live.model.text.slice(w.start, w.end) === w.text) {
+            const free = (s, e) => !live.labels.some((l) => l.start < e && l.end > s);
+            targets = freeRuns(live.model.text, w.start, w.end, w.label, free)
+              .map((s) => ({ start: s.start, end: s.end, text: live.model.text.slice(s.start, s.end), label: w.label }));
+          }
+          for (const t of targets) {
+            if (!state.autoFilling) break;
+            if (t !== targets[0]) {
+              live = liveRight();
+              state.rightModel = live.model;
+              state.rightLabels = live.labels;
+            }
+            const range = resolveTargetRange(t, live);
+            if (!range) continue;
+            // The card ticks "Annotate matching entries" (the same value elsewhere gets the label too); Auto-Fill does not.
+            if (await applySingleAnnotation(range, t.label, true)) { applied++; state.autoApplied.add(autoKey(t.label, t.text)); } else failed++;
+            if (words.length > 1 || targets.length > 1) await sleep(160);
+          }
         }
       } finally {
         state.autoFilling = false;
@@ -718,7 +736,7 @@
         state.pageProject = P.projects.fromPage(document, loc ? [loc.left, loc.right] : []);
       }
       state.project = P.projects.current(taskName, state.pageProject);
-      // The client a Code Base task belongs to, from its title ("DK1__TeamKiraana__website" -> Kiraana).
+      // The client a Code Base task belongs to, from its title ("XX1__TeamKiraana__website" -> Kiraana).
       P.TASK_CLIENT_NAMES = P.projects.clientsFromTask(taskName);
       if (state.goldenPage !== page) state.goldenPage = pageIsGolden(loc) ? page : null;
       // A label set fixed for the project on the team server (core/cloud-client.js) also counts.
@@ -811,7 +829,7 @@
     }
 
     // Labeling on the site (its own dialog) and the word rules Auto-Fill follows: page/site-labeler.js.
-    const { sleep, applySingleAnnotation, allWordBoundedIndexes, wordSpans } = P.siteLabeler;
+    const { sleep, applySingleAnnotation, allWordBoundedIndexes, valueSpans, wordSpans, freeRuns } = P.siteLabeler;
     const rangeHasLabel = (range) => P.siteLabeler.rangeHasLabel(range, state.sticky && state.sticky.S.rightLabelSpan, state.sticky && state.sticky.loc.right);
 
     function liveRight() {
@@ -886,6 +904,7 @@
 
         raw.push({ start, end, text: slice, label });
         mark(start, end, 2);
+        return true;
       };
 
       const push = (start, end, label) => {
@@ -904,8 +923,15 @@
         // A value the reviewer said is not PII is never labeled (Overscrubbed marks are about the right side's text).
         if (label !== 'Overscrubbed' && P.learning.isNotPii(rightText.slice(start, end))) return;
 
-        // One word per label ("dfghj poijkjm" -> two labels), so labels never overlap or nest.
-        for (const w of wordSpans(rightText, start, end, label)) pushSingleSpan(w.start, w.end, label);
+        // One label per value ("the information" -> one Business Name label). When part of it is already
+        // labeled, the words still free get a label each, so labels never overlap or nest.
+        for (const v of valueSpans(rightText, start, end, label)) {
+          if (pushSingleSpan(v.start, v.end, label)) continue;
+          if (isOverlappingExisting(v.start, v.end) || overlapsQueued(v.start, v.end)) {
+            const free = (s, e) => !isOverlappingExisting(s, e) && !overlapsQueued(s, e);
+            for (const r of freeRuns(rightText, v.start, v.end, label, free)) pushSingleSpan(r.start, r.end, label);
+          }
+        }
       };
 
       // The reviewer's answers win: "Keep (not PII)" stops a PII label, "Redact (PII)" an Overscrubbed
@@ -1100,8 +1126,8 @@
           if (!m) continue;
           const label = state.relabel.get(f.id) || m.label;
           const note = label !== m.label ? `You chose ${label}.` : m.note;
-          // One mark per word, exactly where Auto-Fill would put each label.
-          for (const w of wordSpans(state.rightModel.text, f.right.start, f.right.end, label)) {
+          // One mark per value, exactly where Auto-Fill would put the label.
+          for (const w of valueSpans(state.rightModel.text, f.right.start, f.right.end, label)) {
             rawMarks.push({ ...f, right: w, markLabel: label, markNote: note, markKind: check === 'L2' ? 'issue' : 'overscrub' });
           }
         }

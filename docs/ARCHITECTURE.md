@@ -167,7 +167,7 @@ Each finding keeps the question of the check it came from (`own(f)`) and its `se
 
 ### 4.1 Auto-Fill: `content.js` → `page/site-labeler.js`
 
-`collectAutoFillTargets()` builds one target per word, because the site labels one word per label:
+`collectAutoFillTargets()` builds one target per value: "the information" gets one Business Name label, not two. A value is split only where it breaks onto a new line, or word by word when part of it is already labeled (so labels never nest or overlap):
 - **Sources:** redaction-check findings first, then label-check findings, then any detection still visible on the right.
 - **Occupancy bits** stop overlaps: 1 = existing label, 2 = queued, 4 = partly scrubbed link.
 - **Public links are never targets:** placeholders, whitelisted links and image files.

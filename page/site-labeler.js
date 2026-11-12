@@ -1,7 +1,7 @@
 // Labels text on the review site the way a person does it, through the site's own popup:
 // select the text -> "Choose a label" dialog -> pick the exact label -> leave "Annotate matching entries" as asked ->
 // Apply -> wait for the dialog to close. One label at a time; Submit is never touched.
-// Also the word rules Auto-Fill follows: one word per label, never over an existing label.
+// Also the word rules Auto-Fill follows: one label per value, never over an existing label.
 (function (g) {
   'use strict';
   const P = g.PIIRA;
@@ -178,21 +178,49 @@
     return out;
   };
 
-  // Labels go on one word at a time: a two-word value gets two labels, side by side, never one label
-  // spanning both (which the site can nest or overlap with another). Links stay whole: a URL is one value.
-  // Edge punctuation is left out; words too short to be a value ("a", "-") are skipped.
+  // Trim edge punctuation; null when what is left is too short to be a value ("a", "-").
+  function trimSpan(text, s, e) {
+    while (s < e && /[\s,.;:!?()"'[\]{}<>]/.test(text[s])) s++;
+    while (e > s && /[\s,.;:!?()"'[\]{}<>]/.test(text[e - 1])) e--;
+    return text.slice(s, e).replace(/[^\p{L}\p{N}]/gu, '').length >= MIN_TOKEN_LENGTH ? { start: s, end: e } : null;
+  }
+
+  // One label per value: "the information" (a business name) or "Pbs Uymm" (New York) is a single label
+  // across both words. A value is only split where it breaks onto a new line. Links stay whole.
   const WHOLE_LABELS = new Set(['URL/Link']);
+  function valueSpans(text, start, end, label) {
+    if (WHOLE_LABELS.has(label)) return [{ start, end }];
+    const out = [];
+    for (const m of text.slice(start, end).matchAll(/[^\n\r]+/g)) {
+      const sp = trimSpan(text, start + m.index, start + m.index + m[0].length);
+      if (sp) out.push(sp);
+    }
+    return out;
+  }
+
+  // Word by word: the fallback when part of a value is already labeled on the page, so a new label never
+  // nests in or overlaps an existing one.
   function wordSpans(text, start, end, label) {
     if (WHOLE_LABELS.has(label)) return [{ start, end }];
     const out = [];
     for (const m of text.slice(start, end).matchAll(/\S+/g)) {
-      let s = start + m.index;
-      let e = s + m[0].length;
-      while (s < e && /[,.;:!?()"'[\]{}<>]/.test(text[s])) s++;
-      while (e > s && /[,.;:!?()"'[\]{}<>]/.test(text[e - 1])) e--;
-      if (text.slice(s, e).replace(/[^\p{L}\p{N}]/gu, '').length >= MIN_TOKEN_LENGTH) out.push({ start: s, end: e });
+      const sp = trimSpan(text, start + m.index, start + m.index + m[0].length);
+      if (sp) out.push(sp);
     }
     return out;
+  }
+
+  // The words of a value that are still free (isFree(start, end)), joined back into runs: with "Tata"
+  // labeled, "Tata Consultancy Services Limited" leaves one run, "Consultancy Services Limited".
+  function freeRuns(text, start, end, label, isFree) {
+    const out = [];
+    for (const w of wordSpans(text, start, end, label)) {
+      const last = out[out.length - 1];
+      if (!isFree(w.start, w.end)) { if (last) last.closed = true; continue; }
+      if (last && !last.closed && /^\s+$/.test(text.slice(last.end, w.start))) last.end = w.end;
+      else out.push({ start: w.start, end: w.end });
+    }
+    return out.map(({ start: s, end: e }) => ({ start: s, end: e }));
   }
 
   /**
@@ -219,6 +247,6 @@
 
   P.siteLabeler = {
     MIN_TOKEN_LENGTH, sleep, waitFor, simulateClick, applySingleAnnotation, closeStrayDialog,
-    isWordBounded, allWordBoundedIndexes, wordSpans, rangeHasLabel,
+    isWordBounded, allWordBoundedIndexes, valueSpans, wordSpans, freeRuns, rangeHasLabel,
   };
 })(globalThis);

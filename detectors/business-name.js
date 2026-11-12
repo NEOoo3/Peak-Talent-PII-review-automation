@@ -187,7 +187,7 @@
 
   // The client's own names: always a Business Name, never a Person Name. From three places —
   //   - data/client-business-names.js (the team's list),
-  //   - the task title (P.TASK_CLIENT_NAMES, set per task: "DK1__TeamKiraana__website" -> Kiraana),
+  //   - the task title (P.TASK_CLIENT_NAMES, set per task: "XX1__TeamKiraana__website" -> Kiraana),
   //   - the document's own e-mail domains ("ravi@vogo.in" -> vogo), unless a free-mail or public provider.
   // Any spelling of a name counts (Kirana = Kiraana = Khirana = Kirrana: doubled letters and an "h" after a consonant are
   // optional), and so does a name joined to code by "_", "-" or a capital (TeamKirana, kirana-api, kirana_app). Not in a

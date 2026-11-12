@@ -2,6 +2,10 @@
 
 From 2.2.0 on, each release is named after the next constellation in alphabetical order. Earlier builds were numbered betas of 2.1.
 
+## 2.9.0 Hydra - Whole Values
+- Auto-Fill and the hover card's Auto-Apply give a multi-word value one label: "the information" is one Business Name, "Pbs Uymm" one Overscrubbed, not one label per word.
+- A value is split only where it breaks onto a new line. If part of it is already labeled, each remaining run of words gets one label beside it, so labels never nest or overlap.
+
 ## 2.8.0 Gemini - Image Links
 - Links that end in an image file (`.jpg .jpeg .png .webp .gif .svg .tif .tiff .raw`, also before `?…` / `#…`) are no longer tagged as URL/Link or Auto-Filled.
 

@@ -94,11 +94,11 @@
     return true;
   }
 
-  // The client a task belongs to, from its title: "rai_codebase~~DK1__TeamKiraana__website~~src~~App.tsx" -> Kiraana
-  // (client code DK1, then the organisation; "Team" in front is dropped), "codebase~~troveworks__trove-iam-svc~~…" ->
+  // The client a task belongs to, from its title: "rai_codebase~~XX1__TeamKiraana__website~~src~~App.tsx" -> Kiraana
+  // (client code XX1, then the organisation; "Team" in front is dropped), "codebase~~troveworks__trove-iam-svc~~…" ->
   // troveworks. Known client codes give the client's name directly. Only for Code Base (in All Apps the part after the
   // project names the app the data came from, such as "zorvakapp", not the client).
-  const CLIENT_CODES = {}; // client code -> client name, e.g. { DK1: 'Kirana' }
+  const CLIENT_CODES = {}; // client code -> client name, e.g. { XX1: 'Kirana' }
   const GENERIC_PART = /^(?:website|web|site|app|apps|api|backend|frontend|front|back|mobile|android|ios|infra|platform|data|shared|service|services|svc|repo|repos|monorepo|main|core|common|lib|libs|sdk|cli|admin|dashboard|portal|docs|prod|dev|staging|test|tests)$/i;
   function clientsFromTask(fileName) {
     const parts = String(fileName || '').replace(/^.*?(?=rai_|codebase|code[_-]base)/i, '').split('~~');
