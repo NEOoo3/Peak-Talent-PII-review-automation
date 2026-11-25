@@ -181,6 +181,25 @@
       return h('h1', { 'aria-label': 'PII Review Automation' }, ...marks, h('span', { class: 'product' }, 'PII Review'));
     }
 
+    // TAKE (green: review and annotate this task) or PASS (red: skip it), from the Pass / Skip guidelines
+    // (core/task-triage.js). Clicking a PASS copies the skip reason for the L2 field.
+    function triagePill(t) {
+      const take = t.verdict === 'TAKE';
+      const c = t.counts || {};
+      const facts = `PII/BII labels: ${c.pii || 0} (person: ${c.person || 0}) · Overscrubbed: ${c.over || 0}` +
+        ` · PII still showing: ${t.missed || 0} · About ${Math.max(1, Math.round(t.scrolls || 0))} scroll(s)`;
+      const title = `${take ? 'TAKE: review and annotate this task' : 'PASS: skip this task'}.\n${t.reason}\n${facts}` +
+        (take ? '' : '\nClick to copy the reason for the L2 field.') + '\nA Sampling Imperfection is yours to judge.';
+      return h('button', {
+        class: 'launcher-triage ' + (take ? 'take' : 'pass'), title, 'aria-label': title,
+        onclick: () => {
+          if (dragged || take) return;
+          const done = (ok) => { const b = root.querySelector('.launcher-triage'); if (b) { b.textContent = ok ? 'Copied' : 'PASS'; setTimeout(() => { b.textContent = 'PASS'; }, 1200); } };
+          try { navigator.clipboard.writeText(t.reason).then(() => done(true), () => done(false)); } catch (e) { done(false); }
+        },
+      }, take ? 'TAKE' : 'PASS');
+    }
+
     function frame(content, statusText) {
       // Re-rendering must not steal focus or the caret from the search box.
       const active = shadow.activeElement;
@@ -214,7 +233,8 @@
           mode === 'result' && last && cb.onAutoFill ? h('button', {
             class: 'launcher-fill', title: 'Label the issues in the right document automatically (Alt + A). Click again to stop. Drag to move it with the PII button.',
             onclick: () => { if (!dragged) cb.onAutoFill(); },
-          }, ui.fillLabel || 'Auto-Fill PII') : null),
+          }, ui.fillLabel || 'Auto-Fill PII') : null,
+          mode === 'result' && last && last.triage ? triagePill(last.triage) : null),
         h('aside', { class: 'panel', role: 'complementary', 'aria-label': 'PII Review Automation' },
           h('header', {},
             h('div', { class: 'title-row' },

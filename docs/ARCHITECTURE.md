@@ -167,7 +167,7 @@ Each finding keeps the question of the check it came from (`own(f)`) and its `se
 
 ### 4.1 Auto-Fill: `content.js` → `page/site-labeler.js`
 
-`collectAutoFillTargets()` builds one target per value: "the information" gets one Business Name label, not two. A value is split only where it breaks onto a new line, or word by word when part of it is already labeled (so labels never nest or overlap):
+`collectAutoFillTargets()` builds one target per value: "the information" gets one Business Name label, not two. A value is split only where it breaks onto a new line, or when part of it is already labeled (each free run of words gets one label, so labels never nest or overlap). Overscrubbed text longer than three words (a scrubbed sentence) is labeled word by word, so the trained model learns word boundaries; the hover card labels a small word such as "the" without *Annotate matching entries*:
 - **Sources:** redaction-check findings first, then label-check findings, then any detection still visible on the right.
 - **Occupancy bits** stop overlaps: 1 = existing label, 2 = queued, 4 = partly scrubbed link.
 - **Public links are never targets:** placeholders, whitelisted links and image files.
@@ -206,6 +206,7 @@ Storage is IndexedDB in the extension's origin (`sw/store.js`, `sw/memory.js`), 
 | Label tags | `core/label-tags.js` | Label pills above detected values on the left, in a fixed overlay layer |
 | Hover card | `content.js` | "Mark with: <label>", the original value, the reason, and **Auto-Apply** |
 | Select-to-check | `core/select-check.js` | Card under any selection: PII or not, and why |
+| TAKE / PASS | `core/task-triage.js` | One pill for the whole task beside Auto-Fill: green TAKE (annotate it) or red PASS (skip it), from the labels on the page, PII still showing and the document length (15+ scrolls); a PASS click copies the skip reason for the L2 field |
 | Click setup | `panel/picker.js` | Point at left, right and one label. Clicks are captured and never reach the site |
 
 ## 7. Performance design

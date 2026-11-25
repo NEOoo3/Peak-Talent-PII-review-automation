@@ -2,6 +2,20 @@
 
 From 2.2.0 on, each release is named after the next constellation in alphabetical order. Earlier builds were numbered betas of 2.1.
 
+## 2.12.0 Monoceros - Keep Means Keep
+- A value answered **Keep (not PII)** in the panel is never labeled by Auto-Fill, the group Fill buttons or the hover card, at every place it appears, whichever check found it. The answer counts from the click, even when it could not be saved to learning.
+- A value answered **Redact (PII)** is never labeled Overscrubbed.
+
+## 2.11.0 Lyra - Take or Pass
+- A small pill beside Auto-Fill gives one verdict for the whole task, from the team’s *Task Review: Pass / Skip Guidelines*: green **TAKE** (review and annotate it) or red **PASS** (skip it).
+- PASS when there are no annotations, only Overscrubbed ones with no PII still showing, or the document is 15+ scrolls long. TAKE when there is any genuine PII/BII.
+- Hover shows the reason and counts; clicking a PASS copies the skip reason for the L2 field. Sampling Imperfection is left to the reviewer.
+
+## 2.10.0 Indus - Word by Word
+- Overscrubbed text longer than three words (a scrubbed sentence) is labeled one word at a time, by Auto-Fill and the hover card, so the trained model learns word boundaries. Names and short phrases stay one label.
+- The hover card labels a small word ("the", "and", "for", "your"…) without *Annotate matching entries*, and shows the original word under the original sentence.
+- A scrubbed word that happens to be a web suffix ("mom") is still labeled inside a scrubbed sentence.
+
 ## 2.9.0 Hydra - Whole Values
 - Auto-Fill and the hover card's Auto-Apply give a multi-word value one label: "the information" is one Business Name, "Pbs Uymm" one Overscrubbed, not one label per word.
 - A value is split only where it breaks onto a new line. If part of it is already labeled, each remaining run of words gets one label beside it, so labels never nest or overlap.

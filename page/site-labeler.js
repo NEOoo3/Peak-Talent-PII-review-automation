@@ -187,9 +187,15 @@
 
   // One label per value: "the information" (a business name) or "Pbs Uymm" (New York) is a single label
   // across both words. A value is only split where it breaks onto a new line. Links stay whole.
+  // Overscrubbed text longer than a short phrase (a scrubbed sentence) is labeled word by word, so the
+  // model being trained learns where each word starts and ends.
   const WHOLE_LABELS = new Set(['URL/Link']);
+  const OVERSCRUB_JOIN_MAX_WORDS = 3;
   function valueSpans(text, start, end, label) {
     if (WHOLE_LABELS.has(label)) return [{ start, end }];
+    if (label === 'Overscrubbed' && (text.slice(start, end).match(/\S+/g) || []).length > OVERSCRUB_JOIN_MAX_WORDS) {
+      return wordSpans(text, start, end, label);
+    }
     const out = [];
     for (const m of text.slice(start, end).matchAll(/[^\n\r]+/g)) {
       const sp = trimSpan(text, start + m.index, start + m.index + m[0].length);
@@ -208,6 +214,20 @@
       if (sp) out.push(sp);
     }
     return out;
+  }
+
+  // Small connecting words ("the", "and", "for"). Labeled on their own, they never tick "Annotate matching
+  // entries": the same scrubbed letters elsewhere are not the same word.
+  const FILLER_WORDS = new Set(('a an the and or but nor so yet of to in on at by for from with into onto upon about ' +
+    'as if than then that this these those it its is are was were be been am do does did has have had will shall ' +
+    'can may might must would should could not no yes i me my we us our you your he him his she her they them their ' +
+    'who whom which what when where why how all any each per via up out off over under').split(' '));
+  const bare = (w) => String(w || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  // isFiller(original word, scrubbed word, label): the original when known; otherwise a scrubbed word of up
+  // to 3 letters inside Overscrubbed text is taken as one.
+  function isFiller(original, scrubbed, label) {
+    if (original) return FILLER_WORDS.has(bare(original));
+    return label === 'Overscrubbed' && bare(scrubbed).length <= 3;
   }
 
   // The words of a value that are still free (isFree(start, end)), joined back into runs: with "Tata"
@@ -247,6 +267,6 @@
 
   P.siteLabeler = {
     MIN_TOKEN_LENGTH, sleep, waitFor, simulateClick, applySingleAnnotation, closeStrayDialog,
-    isWordBounded, allWordBoundedIndexes, valueSpans, wordSpans, freeRuns, rangeHasLabel,
+    isWordBounded, allWordBoundedIndexes, valueSpans, wordSpans, freeRuns, isFiller, rangeHasLabel,
   };
 })(globalThis);

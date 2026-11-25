@@ -36,7 +36,8 @@ Everything runs in the browser. Document text is never sent anywhere.
 | **Label check** | Compares the labels on the right with what was detected on the left: missed PII, wrong label, labeled but not PII. |
 | **Redaction check** | Aligns the two documents word by word. It classifies each change as correctly replaced, still visible, over-scrubbed, or replaced with a value of the wrong kind or unreadable filler. |
 | **One review list** | Both checks merge into a single list grouped by label, with Prev / Next navigation, filters and per-group actions. |
-| **Auto-Fill** | Labels everything that needs a label in one run (or one group at a time), through the site's own popup, one label per value (a two-word name is one label). A hover card on any marked word applies its label with *Annotate matching entries* ticked. |
+| **Auto-Fill** | Labels everything that needs a label in one run (or one group at a time), through the site's own popup, one label per value (a two-word name is one label; a scrubbed sentence is labeled word by word). A hover card on any marked word applies its label with *Annotate matching entries* ticked. |
+| **TAKE / PASS** | One pill for the whole task beside Auto-Fill, from the team's Pass / Skip guidelines: green **TAKE** when the task has genuine PII/BII annotations, red **PASS** when it has none, only overscrubbing, or is 15+ scrolls long. Hover for the reason; click a PASS to copy the reason for the L2 field. |
 | **Highlights** | Colour underlines on both documents, drawn with the CSS Custom Highlight API. The page's DOM and text are never modified. |
 | **Learning** | Remembers the reviewer's answers on the device ("Not PII", "this is a company") and applies them to the next document. Optional team sync shares only company names and plain "not PII" words. |
 | **Select-to-check** | Select any text to see whether it is PII and why. |

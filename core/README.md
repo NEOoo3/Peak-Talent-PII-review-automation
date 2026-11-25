@@ -32,5 +32,6 @@ The shared engine: label definitions, the detection engine, document reading, le
 | `label-tags.js` | Label pills above detected values on the left document, in an overlay layer |
 | `report.js` | "Report" and "Save task for testing" files; release name and version |
 | `select-check.js` | Select-to-check card: is the selected text PII, and why |
+| `task-triage.js` | TAKE / PASS pill for the whole task, from the Pass / Skip guidelines |
 | `page-watcher.js` | Watches the page for new tasks and label changes; triggers re-analysis (debounced) |
 | `psl.js` | Public Suffix List lookups: suffix, registrable domain, subdomain (offline) |

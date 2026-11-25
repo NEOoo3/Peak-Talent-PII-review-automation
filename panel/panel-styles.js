@@ -88,6 +88,16 @@
 }
 .launcher-fill:hover { background: #2a2a2a; transform: translateY(-1px); }
 .launcher-fill:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* TAKE / PASS for the whole task: a small pill beside Auto-Fill, green TAKE, red PASS. */
+.launcher-triage {
+  padding: 5px 10px; border-radius: 999px; border: 1px solid transparent; color: #fff; cursor: default;
+  font: 800 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; letter-spacing: .06em; white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .22);
+}
+.launcher-triage.take { background: #1f9d55; border-color: #188046; }
+.launcher-triage.pass { background: #d93025; border-color: #b3261e; cursor: pointer; }
+.launcher-triage.pass:hover { background: #c5221f; }
+.launcher-triage:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 header { padding: 14px 16px 12px; border-bottom: 1px solid var(--line); background: var(--bg); }
 .title-row { display: flex; align-items: center; gap: 4px; }
 h1 { margin: 0; flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; overflow: hidden; }

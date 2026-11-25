@@ -303,6 +303,7 @@
       head.append(document.createTextNode('Mark with:'), pill);
       el.append(head);
       if (m.original && m.original !== m.text) el.append(tipLine('Original:', `“${m.original.slice(0, 120)}”`, '#ffd166'));
+      if (m.wordOriginal && m.wordOriginal !== m.original) el.append(tipLine('This word:', `“${m.wordOriginal}”`, '#ffd166'));
       if (m.note) {
         const note = document.createElement('div');
         note.style.cssText = 'margin-top:3px;color:#cfcfcf;font-weight:400';
@@ -312,8 +313,9 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       const words = valueWords(m);
-      btn.textContent = `Auto-Apply “${m.label}”${words.length > 1 ? ` · ${words.length} parts` : ''}`;
-      btn.title = `Label ${words.map((w) => `“${w.text}”`).join(', ')} as ${m.label} on the page`;
+      btn.textContent = `Auto-Apply “${m.label}”${words.length > 1 ? ` · ${words.length} labels` : ''}`;
+      btn.title = `Label ${words.map((w) => `“${w.text}”`).join(', ')} as ${m.label} on the page, one label each` +
+        (words.some((w) => w.filler) ? '. Small words like "the" are labeled without "Annotate matching entries".' : '');
       btn.style.cssText = 'display:block;width:100%;margin-top:9px;padding:7px 10px;border:0;border-radius:8px;' +
         'background:linear-gradient(135deg,#ffc14d,#f59e0b);color:#141414;box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 4px 14px rgba(245,158,11,.35);' +
         "transition:filter .2s ease;font:700 12px/1.2 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;cursor:pointer";
@@ -330,7 +332,7 @@
     }
 
     // Every underlined part of the value under the pointer, in page order (one label per part; a value
-    // is one part unless it breaks onto a new line).
+    // is one part unless it breaks onto a new line or is a scrubbed sentence, labeled word by word).
     const valueWords = (m) => {
       const same = m.id == null ? [] : tip.marks.filter((x) => x.id === m.id && x.label === m.label);
       return (same.length ? same : [m]).slice().sort((a, b) => a.start - b.start);
@@ -374,8 +376,10 @@
             }
             const range = resolveTargetRange(t, live);
             if (!range) continue;
-            // The card ticks "Annotate matching entries" (the same value elsewhere gets the label too); Auto-Fill does not.
-            if (await applySingleAnnotation(range, t.label, true)) { applied++; state.autoApplied.add(autoKey(t.label, t.text)); } else failed++;
+            // The card ticks "Annotate matching entries" (the same value elsewhere gets the label too), except for a
+            // small word like "the" on its own: its scrubbed letters elsewhere are not the same word. Auto-Fill never ticks it.
+            const filler = t === targets[0] && t.end === w.end ? w.filler : !/\s/.test(t.text) && P.siteLabeler.isFiller('', t.text, t.label);
+            if (await applySingleAnnotation(range, t.label, !filler)) { applied++; state.autoApplied.add(autoKey(t.label, t.text)); } else failed++;
             if (words.length > 1 || targets.length > 1) await sleep(160);
           }
         }
@@ -840,10 +844,34 @@
       return { model, labels };
     }
 
+    // The values the reviewer answered in the panel, by text: "Keep (not PII)" / "Not PII" ones (notPii) and
+    // "Redact (PII)" / "Yes" ones (pii). Auto-Fill reads these directly, so an answer counts at once and for
+    // every place the value appears, whichever check found it, even when it was never saved to learning.
+    const valueKey = (s) => squash(String(s || '')).toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    function answeredValues() {
+      const notPii = new Set();
+      const pii = new Set();
+      for (const f of (state.result && state.result.findings) || []) {
+        const v = state.verdicts.get(f.id);
+        if (!v) continue;
+        const set = v === 'yes' || v === 'redact' ? pii : notPii;
+        if (f.right && state.rightModel) set.add(valueKey(state.rightModel.text.slice(f.right.start, f.right.end)));
+        if (f.left && state.leftModel) set.add(valueKey(state.leftModel.text.slice(f.left.start, f.left.end)));
+        if (f.text) set.add(valueKey(f.text));
+      }
+      notPii.delete('');
+      pii.delete('');
+      return { notPii, pii };
+    }
+    // Does an answer rule out putting `label` on this text? Not PII stops a PII label; PII stops Overscrubbed.
+    const answeredAgainst = (answers, label, text) =>
+      (label === 'Overscrubbed' ? answers.pii : answers.notPii).has(valueKey(text));
+
     function collectAutoFillTargets() {
       if (!state.rightModel || !state.leftModel || !state.sticky) return [];
       const rightText = state.rightModel.text;
       const leftText = state.leftModel.text;
+      const answers = answeredValues();
       const existing = P.compare.readLabels(state.sticky.loc.right, state.rightModel, state.sticky.S);
       // Which characters of the right text are taken: 1 by a label on the page, 2 by a queued target,
       // 4 by a partly scrubbed link. Overlap checks read the span itself instead of every other span.
@@ -881,7 +909,9 @@
       const raw = [];
       const overlapsQueued = (s, e) => hits(s, e, 2);
 
-      const pushSingleSpan = (start, end, label) => {
+      // inSentence: a word of a scrubbed sentence; a word that happens to be a web suffix ("mom", "bar") is
+      // still a word there, so only a scheme or a dotted suffix (".com") is left out.
+      const pushSingleSpan = (start, end, label, inSentence) => {
         if (typeof start !== 'number' || typeof end !== 'number' || end <= start || !siteLabels.has(label)) return;
         while (start < end && /\s/.test(rightText[start])) start++;
         while (end > start && /\s/.test(rightText[end - 1])) end--;
@@ -893,7 +923,7 @@
 
         const slice = rightText.slice(start, end);
         if (slice.replace(/[^\p{L}\p{N}]/gu, '').length < MIN_TOKEN_LENGTH) return;
-        if (PROTOCOL_OR_TLD_RE.test(slice)) return;
+        if (PROTOCOL_OR_TLD_RE.test(slice) && !(inSentence && /^[\p{L}\p{N}]/u.test(slice) && !/^(?:https?|ftp|www)$/i.test(slice))) return;
 
         if (touchesPartiallyScrubbedUrl(start, end)) return;
 
@@ -901,6 +931,7 @@
 
         if (!isWordBounded(rightText, start, end)) return;
         if (isOverlappingExisting(start, end) || overlapsQueued(start, end)) return;
+        if (answeredAgainst(answers, label, slice)) return;
 
         raw.push({ start, end, text: slice, label });
         mark(start, end, 2);
@@ -911,6 +942,8 @@
         if (typeof start !== 'number' || typeof end !== 'number' || end <= start || !siteLabels.has(label)) return;
         const fullSlice = cleanUrlStr(rightText.slice(start, end));
         if (!fullSlice || PROTOCOL_OR_TLD_RE.test(fullSlice)) return;
+        // The whole value was answered (its words one by one are checked again below).
+        if (answeredAgainst(answers, label, rightText.slice(start, end))) return;
 
         if (label === 'URL/Link' || URL_LIKE_PIECE_RE.test(fullSlice)) {
           if (leftUrls.has(fullSlice) && !OVERSCRUB_TOKEN_RE.test(fullSlice)) {
@@ -925,8 +958,10 @@
 
         // One label per value ("the information" -> one Business Name label). When part of it is already
         // labeled, the words still free get a label each, so labels never overlap or nest.
-        for (const v of valueSpans(rightText, start, end, label)) {
-          if (pushSingleSpan(v.start, v.end, label)) continue;
+        const spans = valueSpans(rightText, start, end, label);
+        const inSentence = label === 'Overscrubbed' && spans.length > 1;
+        for (const v of spans) {
+          if (pushSingleSpan(v.start, v.end, label, inSentence)) continue;
           if (isOverlappingExisting(v.start, v.end) || overlapsQueued(v.start, v.end)) {
             const free = (s, e) => !isOverlappingExisting(s, e) && !overlapsQueued(s, e);
             for (const r of freeRuns(rightText, v.start, v.end, label, free)) pushSingleSpan(r.start, r.end, label);
@@ -1099,6 +1134,34 @@
         cloud: P.cloud.state,
         labelSet: { pref: state.labelSetPref || 'auto', active: P.labelSet(), detected: Boolean(state.goldenPage) },
         project: { current: state.project || 'general', choice: P.SETTINGS.project || 'auto' },
+        triage: taskTriage(),
+      });
+    }
+
+    // TAKE / PASS for the whole task (core/task-triage.js): the labels on the page, real PII the scan
+    // finds still showing, and how long the document is.
+    function taskTriage() {
+      try {
+        const counts = P.triage.countLabels(state.rightLabels);
+        const missed = state.result.findings.filter((f) => f.category === 'LEAKAGE' && f.right).length;
+        const scrolls = P.triage.scrollsOf(state.sticky && state.sticky.loc.right);
+        return { ...P.triage.decide({ ...counts, missed, scrolls }), counts, missed, scrolls };
+      } catch (err) {
+        return null;
+      }
+    }
+
+    // The original word behind each one-word span on the right, when the original and the scrubbed text
+    // have the same number of words ("the" behind "bez"); '' where that cannot be told.
+    function wordOriginals(f, spans) {
+      const none = spans.map(() => '');
+      if (!f.left || !state.leftModel || !spans.some((s) => !/\s/.test(state.rightModel.text.slice(s.start, s.end)))) return none;
+      const lw = wordSpans(state.leftModel.text, f.left.start, f.left.end, '');
+      const rw = wordSpans(state.rightModel.text, f.right.start, f.right.end, '');
+      if (lw.length !== rw.length) return none;
+      return spans.map((s) => {
+        const i = rw.findIndex((r) => r.start === s.start && r.end === s.end);
+        return i < 0 ? '' : state.leftModel.text.slice(lw[i].start, lw[i].end);
       });
     }
 
@@ -1117,6 +1180,7 @@
       if (done.length) detected = detected.filter((d) => !done.some((f) => f.left.start < d.left.end && f.left.end > d.left.start));
 
       let rawMarks = [];
+      const answers = answeredValues();
       if (!state.hidden.has(P.RIGHT_OVERSCRUB_KEY)) {
         for (const f of state.result.findings) {
           const check = P.decisions.own(f);
@@ -1125,11 +1189,15 @@
           const m = markFor(f, check);
           if (!m) continue;
           const label = state.relabel.get(f.id) || m.label;
+          // The same value answered elsewhere in the list ("Keep (not PII)" on another LinkedIn): no mark.
+          if (answeredAgainst(answers, label, state.rightModel.text.slice(f.right.start, f.right.end))) continue;
           const note = label !== m.label ? `You chose ${label}.` : m.note;
-          // One mark per value, exactly where Auto-Fill would put the label.
-          for (const w of valueSpans(state.rightModel.text, f.right.start, f.right.end, label)) {
-            rawMarks.push({ ...f, right: w, markLabel: label, markNote: note, markKind: check === 'L2' ? 'issue' : 'overscrub' });
-          }
+          // One mark per value (a long scrubbed sentence: one per word), exactly where Auto-Fill would put the label.
+          const spans = valueSpans(state.rightModel.text, f.right.start, f.right.end, label);
+          const origs = wordOriginals(f, spans);
+          spans.forEach((w, i) => {
+            rawMarks.push({ ...f, right: w, markLabel: label, markNote: note, markKind: check === 'L2' ? 'issue' : 'overscrub', wordOriginal: origs[i] });
+          });
         }
       }
       
@@ -1140,13 +1208,18 @@
         if (!overlaps) uniqueMarks.push(m);
       }
       
-      tip.marks = uniqueMarks.map((f) => ({
-        // `id` ties the words of one value together ("Pbs" + "Uymm" for "New York"): Auto-Apply labels them all.
-        id: f.id, start: f.right.start, end: f.right.end, label: f.markLabel, note: f.markNote,
-        text: state.rightModel.text.slice(f.right.start, f.right.end),
-        // What the original said here (shown on the card: "Original: U.S. National Science Foundation").
-        original: f.left && state.leftModel ? squash(state.leftModel.text.slice(f.left.start, f.left.end)) : '',
-      }));
+      tip.marks = uniqueMarks.map((f) => {
+        const text = state.rightModel.text.slice(f.right.start, f.right.end);
+        return {
+          // `id` ties the parts of one value together (each word of a scrubbed sentence): Auto-Apply labels them all.
+          id: f.id, start: f.right.start, end: f.right.end, label: f.markLabel, note: f.markNote, text,
+          // What the original said here (shown on the card: "Original: U.S. National Science Foundation").
+          original: f.left && state.leftModel ? squash(state.leftModel.text.slice(f.left.start, f.left.end)) : '',
+          wordOriginal: f.wordOriginal || '',
+          // A small word like "the" is labeled without "Annotate matching entries".
+          filler: P.siteLabeler.isFiller(f.wordOriginal, text, f.markLabel),
+        };
+      });
       hideTip();
 
       const known = state.hidden.has(P.KNOWN_NAMES_KEY) ? [] : state.knownNames;
